@@ -7,6 +7,8 @@ class SecureStorage {
   static const _keyRefresh       = 'refresh_token';
   static const _keyUserId        = 'user_id';
   static const _keyNeedsOnboard  = 'needs_onboarding';
+  static const _keyUsername = 'username';
+  static const _keyName     = 'user_name';
 
   // ── TOKENS ───────────────────────────────────────────────
   Future<void> saveTokens({
@@ -36,6 +38,21 @@ class SecureStorage {
 
   Future<String?> getUserId() async =>
       _storage.read(key: _keyUserId);
+  Future<void> saveUserInfo({
+    required String userId,
+    required String username,
+    required String name,
+  }) async {
+    await _storage.write(key: _keyUserId,   value: userId);
+    await _storage.write(key: _keyUsername, value: username);
+    await _storage.write(key: _keyName,     value: name);
+  }
+
+  Future<String?> getUsername() async =>
+      _storage.read(key: _keyUsername);
+
+  Future<String?> getName() async =>
+      _storage.read(key: _keyName);
 
   // ── ONBOARDING ────────────────────────────────────────────
   Future<void> setNeedsOnboarding(bool value) async =>

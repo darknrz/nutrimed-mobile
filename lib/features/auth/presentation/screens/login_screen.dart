@@ -100,19 +100,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _saveAndNavigate(Map<String, dynamic> data) async {
-    debugPrint('=== SAVE AND NAVIGATE INICIADO');
-    final storage        = sl<SecureStorage>();
+    final storage = sl<SecureStorage>();
+
     await storage.saveTokens(
       access:  data['accessToken'] as String,
       refresh: data['refreshToken'] as String,
     );
+
     final user           = data['user'] as Map<String, dynamic>;
-    final userId         = user['id'].toString();
     final onboardingDone = user['onboardingDone'] as bool? ?? false;
-    await storage.saveUserId(userId);
+
+    // ← guardar nombre y username
+    await storage.saveUserInfo(
+      userId:   user['id'].toString(),
+      username: user['username'] as String? ?? '',
+      name:     user['name']     as String? ?? '',
+    );
+
     await storage.setNeedsOnboarding(!onboardingDone);
-    debugPrint('=== onboardingDone: $onboardingDone');
-    debugPrint('=== navegando a: ${onboardingDone ? "/home" : "/onboarding"}');
+
     if (mounted) {
       if (!onboardingDone) {
         context.go('/onboarding');
