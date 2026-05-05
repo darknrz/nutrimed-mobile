@@ -4,6 +4,10 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../recipes/presentation/screens/recipes_screen.dart';
+import '../../../recipe_detail/presentation/screens/recipe_detail_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../chatbot/presentation/screens/chatbot_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,9 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _currentIndex,
         children: const [
           _HomeContent(),
-          _PlaceholderScreen('Recetas'),
-          _PlaceholderScreen('Chat'),
-          _PlaceholderScreen('Perfil'),
+          RecipesScreen(),
+          ChatbotScreen(),
+          ProfileScreen(),
         ],
       ),
       bottomNavigationBar: _buildTabBar(),
@@ -109,11 +113,9 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   String _userName = '';
-
-  List<Map<String, dynamic>> _recipes     = [];
+  List<Map<String, dynamic>> _recipes      = [];
   List<Map<String, dynamic>> _userDiseases = [];
-
-  bool   _loading  = true;
+  bool _loading = true;
 
   @override
   void initState() {
@@ -126,25 +128,20 @@ class _HomeContentState extends State<_HomeContent> {
       final storage = sl<SecureStorage>();
       final userId  = await storage.getUserId() ?? '0';
       final name    = await storage.getName() ?? '';
+      if (mounted) setState(() => _userName = name);
 
-      setState(() => _userName = name);
-      // Cargar recetas recomendadas y condiciones en paralelo
       final results = await Future.wait([
         sl<DioClient>().get('${ApiConstants.recommended}/$userId'),
         sl<DioClient>().get('${ApiConstants.onboarding}/$userId/needed'),
       ]);
 
-      // Cargar nombre del usuario desde el token guardado
-      final recipesRes = results[0];
-
-      // Cargar enfermedades del usuario
+      final recipesRes  = results[0];
       final diseasesRes = await sl<DioClient>()
           .get('${ApiConstants.userDiseases}/$userId');
 
       if (mounted) {
         setState(() {
-          _recipes = List<Map<String, dynamic>>.from(
-              recipesRes.data);
+          _recipes = List<Map<String, dynamic>>.from(recipesRes.data);
           _userDiseases = List<Map<String, dynamic>>.from(
               diseasesRes.data is List ? diseasesRes.data : []);
           _loading = false;
@@ -152,7 +149,6 @@ class _HomeContentState extends State<_HomeContent> {
       }
     } catch (e) {
       debugPrint('Error cargando home: $e');
-      // Cargar todas las recetas como fallback
       try {
         final res = await sl<DioClient>().get(ApiConstants.recipes);
         if (mounted) {
@@ -176,10 +172,8 @@ class _HomeContentState extends State<_HomeContent> {
 
   List<Map<String, dynamic>> get _breakfastRecipes =>
       _recipes.where((r) => r['mealType'] == 'desayuno').toList();
-
   List<Map<String, dynamic>> get _lunchRecipes =>
       _recipes.where((r) => r['mealType'] == 'almuerzo').toList();
-
   List<Map<String, dynamic>> get _dinnerRecipes =>
       _recipes.where((r) => r['mealType'] == 'cena').toList();
 
@@ -233,10 +227,9 @@ class _HomeContentState extends State<_HomeContent> {
               Text(
                 _userName.isNotEmpty ? _userName : 'Bienvenido',
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFE8F0EC),
-                ),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFFE8F0EC)),
               ),
             ],
           ),
@@ -269,8 +262,7 @@ class _HomeContentState extends State<_HomeContent> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A4A30),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: const Color(0xFF2DB868), width: 0.5),
+        border: Border.all(color: const Color(0xFF2DB868), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,8 +273,7 @@ class _HomeContentState extends State<_HomeContent> {
               const Text('MIS CONDICIONES',
                   style: TextStyle(
                       fontSize: 10, fontWeight: FontWeight.w600,
-                      color: Color(0xFFA8F0C6),
-                      letterSpacing: 0.1)),
+                      color: Color(0xFFA8F0C6), letterSpacing: 0.1)),
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 3),
@@ -290,20 +281,19 @@ class _HomeContentState extends State<_HomeContent> {
                   color: const Color(0xFF3ECF7C),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  '${_userDiseases.length} activas',
-                  style: const TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F1412)),
-                ),
+                child: Text('${_userDiseases.length} activas',
+                    style: const TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F1412))),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 6, runSpacing: 6,
-            children: _userDiseases.map((d) =>
-                _ConditionPill(d['name'] ?? '')).toList(),
+            children: _userDiseases
+                .map((d) => _ConditionPill(d['name'] ?? ''))
+                .toList(),
           ),
         ],
       ),
@@ -333,14 +323,12 @@ class _HomeContentState extends State<_HomeContent> {
     );
   }
 
-  Widget _buildRecipeScroll(
-      List<Map<String, dynamic>> recipes) {
+  Widget _buildRecipeScroll(List<Map<String, dynamic>> recipes) {
     if (recipes.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 20),
         child: Text('Sin recetas disponibles',
-            style: TextStyle(
-                fontSize: 13, color: Color(0xFF566860))),
+            style: TextStyle(fontSize: 13, color: Color(0xFF566860))),
       );
     }
     return SizedBox(
@@ -370,8 +358,7 @@ class _HomeContentState extends State<_HomeContent> {
         color: const Color(0xFF1A2420),
         borderRadius: BorderRadius.circular(12),
         border: const Border(
-            left: BorderSide(
-                color: Color(0xFFF0A830), width: 3)),
+            left: BorderSide(color: Color(0xFFF0A830), width: 3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,13 +366,11 @@ class _HomeContentState extends State<_HomeContent> {
           const Text('CONSEJO DEL DÍA',
               style: TextStyle(
                   fontSize: 10, fontWeight: FontWeight.w600,
-                  color: Color(0xFFF0A830),
-                  letterSpacing: 0.08)),
+                  color: Color(0xFFF0A830), letterSpacing: 0.08)),
           const SizedBox(height: 4),
           Text(tip,
               style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF8FA899),
-                  height: 1.5)),
+                  fontSize: 12, color: Color(0xFF8FA899), height: 1.5)),
         ],
       ),
     );
@@ -399,13 +384,11 @@ class _ConditionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF1A3D28),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: const Color(0xFF2A6040), width: 0.5),
+        border: Border.all(color: const Color(0xFF2A6040), width: 0.5),
       ),
       child: Text(label,
           style: const TextStyle(
@@ -421,65 +404,77 @@ class _RecipeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalMin =
-        (recipe['prepMin'] as int? ?? 0) +
-            (recipe['cookMin'] as int? ?? 0);
-    return Container(
-      width: 158,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A2420),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: const Color(0xFF253028), width: 0.5),
+    final totalMin = (recipe['prepMin'] as int? ?? 0) +
+        (recipe['cookMin'] as int? ?? 0);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecipeDetailScreen(
+            id: recipe['id'].toString(),
+            recipe: recipe,
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 90,
-            decoration: const BoxDecoration(
-              color: Color(0xFF212E28),
-              borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(14)),
-            ),
-            child: Center(
-              child: Text(
-                recipe['imageEmoji'] ?? '🍽️',
-                style: const TextStyle(fontSize: 38),
+      child: Container(
+        width: 158,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A2420),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: const Color(0xFF253028), width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 90,
+              decoration: const BoxDecoration(
+                color: Color(0xFF212E28),
+                borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(14)),
+              ),
+              child: Center(
+                child: Text(recipe['imageEmoji'] ?? '🍽️',
+                    style: const TextStyle(fontSize: 38)),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  (recipe['mealType'] as String? ?? '')
-                      .toUpperCase(),
-                  style: const TextStyle(
-                      fontSize: 9, fontWeight: FontWeight.w600,
-                      color: Color(0xFF3ECF7C),
-                      letterSpacing: 0.08),
-                ),
-                const SizedBox(height: 3),
-                Text(recipe['title'] ?? '',
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (recipe['mealType'] as String? ?? '')
+                        .toUpperCase(),
                     style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFE8F0EC)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Text('$totalMin min · ${recipe['kcal']?.toInt() ?? 0} kcal',
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3ECF7C),
+                        letterSpacing: 0.08),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(recipe['title'] ?? '',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFFE8F0EC)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$totalMin min · ${recipe['kcal']?.toInt() ?? 0} kcal',
                     style: const TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF566860))),
-              ],
+                        color: Color(0xFF566860)),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

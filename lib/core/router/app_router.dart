@@ -54,6 +54,13 @@ class AppRouter {
           builder: (c, s) => const ChatbotScreen()),
       GoRoute(path: '/profile',
           builder: (c, s) => const ProfileScreen()),
+      GoRoute(
+        path: '/recipes/:id',
+        builder: (c, s) => RecipeDetailScreen(
+          id: s.pathParameters['id']!,
+          recipe: s.extra as Map<String, dynamic>?,
+        ),
+      ),
     ],
   );
 }
