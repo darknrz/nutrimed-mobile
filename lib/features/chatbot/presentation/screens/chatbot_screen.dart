@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -28,7 +29,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   void initState() {
     super.initState();
-    // Mensaje de bienvenida
     _messages.add(_Message(
       text: '¡Hola! Soy NutriBot 🌿\n\nEstoy aquí para ayudarte con tus consultas nutricionales personalizadas según tu perfil de salud.\n\n¿En qué puedo ayudarte hoy?',
       isBot: true,
@@ -58,27 +58,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         ApiConstants.chatbot,
         {'userId': int.parse(userId), 'message': text},
       );
-      final reply = res.data['message'] as String? ??
-          'No pude procesar tu consulta.';
+      final reply = res.data['message'] as String? ?? 'No pude procesar tu consulta.';
       setState(() {
         _messages.add(_Message(text: reply, isBot: true));
         _loading = false;
       });
-    } on DioException catch (e) {
+    } on DioException {
       setState(() {
         _messages.add(_Message(
           text: 'Error al conectar. Verifica tu conexión.',
-          isBot: true,
-          isError: true,
+          isBot: true, isError: true,
         ));
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _messages.add(_Message(
           text: 'Ocurrió un error inesperado.',
-          isBot: true,
-          isError: true,
+          isBot: true, isError: true,
         ));
         _loading = false;
       });
@@ -101,7 +98,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1412),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -119,51 +116,40 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       decoration: const BoxDecoration(
-        border: Border(
-            bottom: BorderSide(
-                color: Color(0xFF253028), width: 0.5)),
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
           Container(
             width: 38, height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A4A30),
+              color: const Color(0xFFE8F8EF),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: const Color(0xFF3ECF7C), width: 0.5),
+              border: Border.all(color: const Color(0xFF3ECF7C), width: 0.5),
             ),
-            child: const Center(
-              child: Text('🌿',
-                  style: TextStyle(fontSize: 18)),
-            ),
+            child: const Center(child: Text('🌿', style: TextStyle(fontSize: 18))),
           ),
           const SizedBox(width: 12),
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('NutriBot',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFE8F0EC))),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
               Text('Asistente nutricional IA',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF3ECF7C))),
+                  style: TextStyle(fontSize: 11, color: Color(0xFF1A7A45))),
             ],
           ),
           const Spacer(),
           Container(
             width: 8, height: 8,
             decoration: const BoxDecoration(
-                color: Color(0xFF3ECF7C),
-                shape: BoxShape.circle),
+                color: Color(0xFF22C55E), shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
           const Text('En línea',
-              style: TextStyle(
-                  fontSize: 11, color: Color(0xFF3ECF7C))),
+              style: TextStyle(fontSize: 11, color: Color(0xFF1A7A45))),
         ],
       ),
     );
@@ -186,33 +172,28 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: msg.isBot
-            ? MainAxisAlignment.start
-            : MainAxisAlignment.end,
+        mainAxisAlignment: msg.isBot ? MainAxisAlignment.start : MainAxisAlignment.end,
         children: [
           if (msg.isBot) ...[
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFF1A4A30),
+                color: const Color(0xFFE8F8EF),
                 shape: BoxShape.circle,
-                border: Border.all(
-                    color: const Color(0xFF3ECF7C), width: 0.5),
+                border: Border.all(color: const Color(0xFF3ECF7C), width: 0.5),
               ),
-              child: const Center(
-                  child: Text('🌿',
-                      style: TextStyle(fontSize: 13))),
+              child: const Center(child: Text('🌿', style: TextStyle(fontSize: 13))),
             ),
             const SizedBox(width: 8),
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
+                // bot → gris claro  |  usuario → rojo suave
                 color: msg.isBot
-                    ? const Color(0xFF1A2420)
-                    : const Color(0xFF1A4A30),
+                    ? AppColors.surface
+                    : const Color(0xFFFFEEF1),
                 borderRadius: BorderRadius.only(
                   topLeft:     const Radius.circular(16),
                   topRight:    const Radius.circular(16),
@@ -221,10 +202,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 ),
                 border: Border.all(
                   color: msg.isError
-                      ? const Color(0xFFE85D4A).withOpacity(0.3)
+                      ? AppColors.error.withOpacity(0.4)
                       : msg.isBot
-                      ? const Color(0xFF253028)
-                      : const Color(0xFF2A6040),
+                      ? AppColors.border
+                      : const Color(0xFFFFB3C1),
                   width: 0.5,
                 ),
               ),
@@ -232,8 +213,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     color: msg.isError
-                        ? const Color(0xFFE85D4A)
-                        : const Color(0xFFE8F0EC),
+                        ? AppColors.error
+                        : AppColors.textPrimary,
                     height: 1.5,
                   )),
             ),
@@ -252,35 +233,28 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           Container(
             width: 28, height: 28,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A4A30),
+              color: const Color(0xFFE8F8EF),
               shape: BoxShape.circle,
-              border: Border.all(
-                  color: const Color(0xFF3ECF7C), width: 0.5),
+              border: Border.all(color: const Color(0xFF3ECF7C), width: 0.5),
             ),
-            child: const Center(
-                child: Text('🌿',
-                    style: TextStyle(fontSize: 13))),
+            child: const Center(child: Text('🌿', style: TextStyle(fontSize: 13))),
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2420),
+              color: AppColors.surface,
               borderRadius: const BorderRadius.only(
                 topLeft:     Radius.circular(16),
                 topRight:    Radius.circular(16),
                 bottomRight: Radius.circular(16),
                 bottomLeft:  Radius.circular(4),
               ),
-              border: Border.all(
-                  color: const Color(0xFF253028), width: 0.5),
+              border: Border.all(color: AppColors.border, width: 0.5),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                _dot(0), _dot(150), _dot(300),
-              ],
+              children: [_dot(0), _dot(150), _dot(300)],
             ),
           ),
         ],
@@ -299,8 +273,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           width: 6, height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: const BoxDecoration(
-              color: Color(0xFF3ECF7C),
-              shape: BoxShape.circle),
+              color: Color(0xFF22C55E), shape: BoxShape.circle),
         ),
       ),
     );
@@ -317,18 +290,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           onTap: () => _sendMessage(_suggestions[i]),
           child: Container(
             margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2420),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: const Color(0xFF253028), width: 0.5),
+              border: Border.all(color: AppColors.border, width: 0.5),
             ),
             child: Text(_suggestions[i],
-                style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF8FA899))),
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           ),
         ),
       ),
@@ -339,62 +308,51 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       decoration: const BoxDecoration(
-        border: Border(
-            top: BorderSide(
-                color: Color(0xFF253028), width: 0.5)),
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1A2420),
+                color: AppColors.background,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                    color: const Color(0xFF253028), width: 0.5),
+                border: Border.all(color: AppColors.border, width: 0.5),
               ),
               child: TextField(
                 controller: _inputCtrl,
-                style: const TextStyle(
-                    color: Color(0xFFE8F0EC), fontSize: 14),
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 maxLines: null,
                 textInputAction: TextInputAction.send,
                 onSubmitted: _sendMessage,
                 decoration: const InputDecoration(
                   hintText: 'Escribe tu consulta…',
-                  hintStyle: TextStyle(
-                      color: Color(0xFF566860), fontSize: 13),
+                  hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: _loading
-                ? null
-                : () => _sendMessage(_inputCtrl.text),
+            onTap: _loading ? null : () => _sendMessage(_inputCtrl.text),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 42, height: 42,
               decoration: BoxDecoration(
-                color: _loading
-                    ? const Color(0xFF253028)
-                    : const Color(0xFF3ECF7C),
+                color: _loading ? AppColors.border : AppColors.primary,
                 shape: BoxShape.circle,
               ),
               child: _loading
-                  ? const Center(
+                  ? Center(
                   child: SizedBox(
                     width: 18, height: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF3ECF7C)),
+                        strokeWidth: 2, color: AppColors.primary),
                   ))
-                  : const Icon(Icons.send_rounded,
-                  color: Color(0xFF0F1412), size: 18),
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
             ),
           ),
         ],

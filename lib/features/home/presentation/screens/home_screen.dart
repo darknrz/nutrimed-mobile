@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -21,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1412),
+      backgroundColor: AppColors.background,
       body: IndexedStack(
         index: _currentIndex,
         children: const [
@@ -37,24 +38,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTabBar() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF161E1A),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
         border: Border(
-            top: BorderSide(color: Color(0xFF253028), width: 0.5)),
+          top: BorderSide(color: AppColors.border, width: 0.5),
+        ),
       ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              _tabItem(0, Icons.home_rounded,
-                  Icons.home_outlined, 'Inicio'),
-              _tabItem(1, Icons.menu_book_rounded,
-                  Icons.menu_book_outlined, 'Recetas'),
-              _tabItem(2, Icons.chat_bubble_rounded,
-                  Icons.chat_bubble_outline_rounded, 'Chat'),
-              _tabItem(3, Icons.person_rounded,
-                  Icons.person_outline_rounded, 'Perfil'),
+              _tabItem(0, Icons.home_rounded, Icons.home_outlined, 'Inicio'),
+              _tabItem(1, Icons.menu_book_rounded, Icons.menu_book_outlined, 'Recetas'),
+              _tabItem(2, Icons.chat_bubble_rounded, Icons.chat_bubble_outline_rounded, 'Chat'),
+              _tabItem(3, Icons.person_rounded, Icons.person_outline_rounded, 'Perfil'),
             ],
           ),
         ),
@@ -62,8 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _tabItem(int index, IconData activeIcon,
-      IconData inactiveIcon, String label) {
+  Widget _tabItem(int index, IconData activeIcon, IconData inactiveIcon, String label) {
     final isActive = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -72,28 +69,29 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(isActive ? activeIcon : inactiveIcon,
-                color: isActive
-                    ? const Color(0xFF3ECF7C)
-                    : const Color(0xFF566860),
-                size: 22),
+            Icon(
+              isActive ? activeIcon : inactiveIcon,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
+              size: 22,
+            ),
             const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isActive
-                      ? FontWeight.w600 : FontWeight.w400,
-                  color: isActive
-                      ? const Color(0xFF3ECF7C)
-                      : const Color(0xFF566860),
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? AppColors.primary : AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 2),
             if (isActive)
               Container(
-                width: 4, height: 4,
-                decoration: const BoxDecoration(
-                    color: Color(0xFF3ECF7C),
-                    shape: BoxShape.circle),
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
               )
             else
               const SizedBox(height: 4),
@@ -113,7 +111,7 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   String _userName = '';
-  List<Map<String, dynamic>> _recipes      = [];
+  List<Map<String, dynamic>> _recipes = [];
   List<Map<String, dynamic>> _userDiseases = [];
   bool _loading = true;
 
@@ -126,8 +124,8 @@ class _HomeContentState extends State<_HomeContent> {
   Future<void> _loadData() async {
     try {
       final storage = sl<SecureStorage>();
-      final userId  = await storage.getUserId() ?? '0';
-      final name    = await storage.getName() ?? '';
+      final userId = await storage.getUserId() ?? '0';
+      final name = await storage.getName() ?? '';
       if (mounted) setState(() => _userName = name);
 
       final results = await Future.wait([
@@ -135,9 +133,8 @@ class _HomeContentState extends State<_HomeContent> {
         sl<DioClient>().get('${ApiConstants.onboarding}/$userId/needed'),
       ]);
 
-      final recipesRes  = results[0];
-      final diseasesRes = await sl<DioClient>()
-          .get('${ApiConstants.userDiseases}/$userId');
+      final recipesRes = results[0];
+      final diseasesRes = await sl<DioClient>().get('${ApiConstants.userDiseases}/$userId');
 
       if (mounted) {
         setState(() {
@@ -181,12 +178,11 @@ class _HomeContentState extends State<_HomeContent> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: _loading
-          ? const Center(child: CircularProgressIndicator(
-          color: Color(0xFF3ECF7C)))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
         onRefresh: _loadData,
-        color: const Color(0xFF3ECF7C),
-        backgroundColor: const Color(0xFF1A2420),
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
@@ -194,15 +190,12 @@ class _HomeContentState extends State<_HomeContent> {
             children: [
               _buildHeader(),
               if (_userDiseases.isNotEmpty) _buildHealthCard(),
-              _buildSectionHeader('Desayunos recomendados',
-                  onTap: () {}),
+              _buildSectionHeader('Desayunos recomendados', onTap: () {}),
               _buildRecipeScroll(_breakfastRecipes),
-              _buildSectionHeader('Almuerzos recomendados',
-                  onTap: () {}),
+              _buildSectionHeader('Almuerzos recomendados', onTap: () {}),
               _buildRecipeScroll(_lunchRecipes),
               _buildTipCard(),
-              _buildSectionHeader('Cenas recomendadas',
-                  onTap: () {}),
+              _buildSectionHeader('Cenas recomendadas', onTap: () {}),
               _buildRecipeScroll(_dinnerRecipes),
               const SizedBox(height: 20),
             ],
@@ -221,15 +214,17 @@ class _HomeContentState extends State<_HomeContent> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_getGreeting(),
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF8FA899))),
+              Text(
+                _getGreeting(),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
               Text(
                 _userName.isNotEmpty ? _userName : 'Bienvenido',
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFFE8F0EC)),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
@@ -239,15 +234,18 @@ class _HomeContentState extends State<_HomeContent> {
               if (context.mounted) context.go('/login');
             },
             child: Container(
-              width: 38, height: 38,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: const Color(0xFF1A2420),
+                color: AppColors.background,
                 borderRadius: BorderRadius.circular(50),
-                border: Border.all(
-                    color: const Color(0xFF2E3D36), width: 0.5),
+                border: Border.all(color: AppColors.border, width: 0.5),
               ),
-              child: const Icon(Icons.notifications_none_rounded,
-                  size: 18, color: Color(0xFF8FA899)),
+              child: Icon(
+                Icons.notifications_none_rounded,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -260,9 +258,9 @@ class _HomeContentState extends State<_HomeContent> {
       margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A4A30),
+        color: AppColors.primaryLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2DB868), width: 0.5),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,53 +268,67 @@ class _HomeContentState extends State<_HomeContent> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('MIS CONDICIONES',
-                  style: TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w600,
-                      color: Color(0xFFA8F0C6), letterSpacing: 0.1)),
+              Text(
+                'MIS CONDICIONES',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                  letterSpacing: 0.1,
+                ),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3ECF7C),
+                  color: AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('${_userDiseases.length} activas',
-                    style: const TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w600,
-                        color: Color(0xFF0F1412))),
+                child: Text(
+                  '${_userDiseases.length} activas',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 6, runSpacing: 6,
-            children: _userDiseases
-                .map((d) => _ConditionPill(d['name'] ?? ''))
-                .toList(),
+            spacing: 6,
+            runSpacing: 6,
+            children: _userDiseases.map((d) => _ConditionPill(d['name'] ?? '')).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title,
-      {required VoidCallback onTap}) {
+  Widget _buildSectionHeader(String title, {required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w500,
-                  color: Color(0xFFE8F0EC))),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
           GestureDetector(
             onTap: onTap,
-            child: const Text('Ver todas',
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w500,
-                    color: Color(0xFF3ECF7C))),
+            child: Text(
+              'Ver todas',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
+            ),
           ),
         ],
       ),
@@ -325,10 +337,12 @@ class _HomeContentState extends State<_HomeContent> {
 
   Widget _buildRecipeScroll(List<Map<String, dynamic>> recipes) {
     if (recipes.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text('Sin recetas disponibles',
-            style: TextStyle(fontSize: 13, color: Color(0xFF566860))),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(
+          'Sin recetas disponibles',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
       );
     }
     return SizedBox(
@@ -337,8 +351,7 @@ class _HomeContentState extends State<_HomeContent> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: recipes.length,
-        itemBuilder: (context, i) =>
-            _RecipeCard(recipe: recipes[i]),
+        itemBuilder: (context, i) => _RecipeCard(recipe: recipes[i]),
       ),
     );
   }
@@ -355,22 +368,32 @@ class _HomeContentState extends State<_HomeContent> {
       margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2420),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: const Border(
-            left: BorderSide(color: Color(0xFFF0A830), width: 3)),
+        border: Border(
+          left: BorderSide(color: AppColors.warning, width: 3),
+          top: BorderSide(color: AppColors.border, width: 0.5),
+          right: BorderSide(color: AppColors.border, width: 0.5),
+          bottom: BorderSide(color: AppColors.border, width: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('CONSEJO DEL DÍA',
-              style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600,
-                  color: Color(0xFFF0A830), letterSpacing: 0.08)),
+          Text(
+            'CONSEJO DEL DÍA',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.warning,
+              letterSpacing: 0.08,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(tip,
-              style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF8FA899), height: 1.5)),
+          Text(
+            tip,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+          ),
         ],
       ),
     );
@@ -386,14 +409,18 @@ class _ConditionPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A3D28),
+        color: AppColors.primaryLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2A6040), width: 0.5),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 0.5),
       ),
-      child: Text(label,
-          style: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w500,
-              color: Color(0xFFA8F0C6))),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: AppColors.primary,
+        ),
+      ),
     );
   }
 }
@@ -404,8 +431,7 @@ class _RecipeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalMin = (recipe['prepMin'] as int? ?? 0) +
-        (recipe['cookMin'] as int? ?? 0);
+    final totalMin = (recipe['prepMin'] as int? ?? 0) + (recipe['cookMin'] as int? ?? 0);
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -421,24 +447,24 @@ class _RecipeCard extends StatelessWidget {
         width: 158,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2420),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-              color: const Color(0xFF253028), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               height: 90,
-              decoration: const BoxDecoration(
-                color: Color(0xFF212E28),
-                borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(14)),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
               ),
               child: Center(
-                child: Text(recipe['imageEmoji'] ?? '🍽️',
-                    style: const TextStyle(fontSize: 38)),
+                child: Text(
+                  recipe['imageEmoji'] ?? '🍽️',
+                  style: const TextStyle(fontSize: 38),
+                ),
               ),
             ),
             Padding(
@@ -447,28 +473,29 @@ class _RecipeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    (recipe['mealType'] as String? ?? '')
-                        .toUpperCase(),
-                    style: const TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF3ECF7C),
-                        letterSpacing: 0.08),
+                    (recipe['mealType'] as String? ?? '').toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                      letterSpacing: 0.08,
+                    ),
                   ),
                   const SizedBox(height: 3),
-                  Text(recipe['title'] ?? '',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFFE8F0EC)),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    recipe['title'] ?? '',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     '$totalMin min · ${recipe['kcal']?.toInt() ?? 0} kcal',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF566860)),
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -486,11 +513,12 @@ class _PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1412),
+      backgroundColor: AppColors.background,
       body: Center(
-        child: Text(name,
-            style: const TextStyle(
-                color: Color(0xFFE8F0EC), fontSize: 20)),
+        child: Text(
+          name,
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 20),
+        ),
       ),
     );
   }

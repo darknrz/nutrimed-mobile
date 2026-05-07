@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
-import 'package:go_router/go_router.dart';
-import 'package:go_router/go_router.dart';
 import '../../../recipe_detail/presentation/screens/recipe_detail_screen.dart';
 
 class RecipesScreen extends StatefulWidget {
@@ -16,57 +15,44 @@ class RecipesScreen extends StatefulWidget {
 class _RecipesScreenState extends State<RecipesScreen> {
   List<Map<String, dynamic>> _allRecipes      = [];
   List<Map<String, dynamic>> _filteredRecipes = [];
-  bool   _loading       = true;
+  bool   _loading        = true;
   String _selectedFilter = 'todos';
   String _searchQuery    = '';
 
   final _searchCtrl = TextEditingController();
 
   final List<Map<String, String>> _filters = [
-    {'value': 'todos',    'label': 'Todas',     'icon': '🍽️'},
-    {'value': 'desayuno', 'label': 'Desayuno',  'icon': '🌅'},
-    {'value': 'almuerzo', 'label': 'Almuerzo',  'icon': '☀️'},
-    {'value': 'cena',     'label': 'Cena',      'icon': '🌙'},
-    {'value': 'snack',    'label': 'Snack',     'icon': '🍎'},
-    {'value': 'bebida',   'label': 'Bebidas',   'icon': '🥤'},
+    {'value': 'todos',    'label': 'Todas',    'icon': '🍽️'},
+    {'value': 'desayuno', 'label': 'Desayuno', 'icon': '🌅'},
+    {'value': 'almuerzo', 'label': 'Almuerzo', 'icon': '☀️'},
+    {'value': 'cena',     'label': 'Cena',     'icon': '🌙'},
+    {'value': 'snack',    'label': 'Snack',    'icon': '🍎'},
+    {'value': 'bebida',   'label': 'Bebidas',  'icon': '🥤'},
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _loadRecipes();
-  }
+  void initState() { super.initState(); _loadRecipes(); }
 
   @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
   Future<void> _loadRecipes() async {
     try {
       final storage = sl<SecureStorage>();
       final userId  = await storage.getUserId() ?? '0';
-      final res     = await sl<DioClient>()
-          .get('${ApiConstants.recommended}/$userId');
-      if (mounted) {
-        setState(() {
-          _allRecipes      = List<Map<String, dynamic>>.from(res.data);
-          _filteredRecipes = _allRecipes;
-          _loading         = false;
-        });
-      }
+      final res     = await sl<DioClient>().get('${ApiConstants.recommended}/$userId');
+      if (mounted) setState(() {
+        _allRecipes = _filteredRecipes = List<Map<String, dynamic>>.from(res.data);
+        _loading = false;
+      });
     } catch (e) {
       try {
         final res = await sl<DioClient>().get(ApiConstants.recipes);
-        if (mounted) {
-          setState(() {
-            _allRecipes      = List<Map<String, dynamic>>.from(res.data);
-            _filteredRecipes = _allRecipes;
-            _loading         = false;
-          });
-        }
-      } catch (e2) {
+        if (mounted) setState(() {
+          _allRecipes = _filteredRecipes = List<Map<String, dynamic>>.from(res.data);
+          _loading = false;
+        });
+      } catch (_) {
         if (mounted) setState(() => _loading = false);
       }
     }
@@ -75,31 +61,21 @@ class _RecipesScreenState extends State<RecipesScreen> {
   void _applyFilters() {
     setState(() {
       _filteredRecipes = _allRecipes.where((r) {
-        final matchFilter = _selectedFilter == 'todos' ||
-            r['mealType'] == _selectedFilter;
+        final matchFilter = _selectedFilter == 'todos' || r['mealType'] == _selectedFilter;
         final matchSearch = _searchQuery.isEmpty ||
-            (r['title'] as String)
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase());
+            (r['title'] as String).toLowerCase().contains(_searchQuery.toLowerCase());
         return matchFilter && matchSearch;
       }).toList();
     });
   }
 
-  void _onFilterTap(String filter) {
-    _selectedFilter = filter;
-    _applyFilters();
-  }
-
-  void _onSearch(String query) {
-    _searchQuery = query;
-    _applyFilters();
-  }
+  void _onFilterTap(String filter) { _selectedFilter = filter; _applyFilters(); }
+  void _onSearch(String query)     { _searchQuery    = query;  _applyFilters(); }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1412),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -109,8 +85,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
             _buildResultCount(),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(
-                  color: Color(0xFF3ECF7C)))
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                   : _filteredRecipes.isEmpty
                   ? _buildEmpty()
                   : _buildGrid(),
@@ -130,7 +105,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
               style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFE8F0EC))),
+                  color: AppColors.textPrimary)),
         ],
       ),
     );
@@ -141,35 +116,26 @@ class _RecipesScreenState extends State<RecipesScreen> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2420),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-              color: const Color(0xFF253028), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: TextField(
           controller: _searchCtrl,
           onChanged: _onSearch,
-          style: const TextStyle(
-              color: Color(0xFFE8F0EC), fontSize: 14),
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Buscar recetas o ingredientes…',
-            hintStyle: const TextStyle(
-                color: Color(0xFF566860), fontSize: 13),
-            prefixIcon: const Icon(Icons.search_rounded,
-                color: Color(0xFF566860), size: 20),
+            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
             suffixIcon: _searchQuery.isNotEmpty
                 ? GestureDetector(
-              onTap: () {
-                _searchCtrl.clear();
-                _onSearch('');
-              },
-              child: const Icon(Icons.close_rounded,
-                  color: Color(0xFF566860), size: 18),
+              onTap: () { _searchCtrl.clear(); _onSearch(''); },
+              child: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 18),
             )
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-                vertical: 14, horizontal: 16),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           ),
         ),
       ),
@@ -191,34 +157,25 @@ class _RecipesScreenState extends State<RecipesScreen> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFF1A4A30)
-                    : const Color(0xFF1A2420),
+                color: isActive ? const Color(0xFFFFEEF1) : AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isActive
-                      ? const Color(0xFF3ECF7C)
-                      : const Color(0xFF253028),
+                  color: isActive ? AppColors.primary : AppColors.border,
                   width: isActive ? 1.5 : 0.5,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(f['icon']!,
-                      style: const TextStyle(fontSize: 13)),
+                  Text(f['icon']!, style: const TextStyle(fontSize: 13)),
                   const SizedBox(width: 5),
                   Text(f['label']!,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isActive
-                            ? FontWeight.w600 : FontWeight.w400,
-                        color: isActive
-                            ? const Color(0xFF3ECF7C)
-                            : const Color(0xFF8FA899),
+                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                        color: isActive ? AppColors.primary : AppColors.textSecondary,
                       )),
                 ],
               ),
@@ -234,11 +191,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
       child: Row(
         children: [
-          Text(
-            '${_filteredRecipes.length} recetas encontradas',
-            style: const TextStyle(
-                fontSize: 12, color: Color(0xFF566860)),
-          ),
+          Text('${_filteredRecipes.length} recetas encontradas',
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -247,8 +201,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
   Widget _buildGrid() {
     return RefreshIndicator(
       onRefresh: _loadRecipes,
-      color: const Color(0xFF3ECF7C),
-      backgroundColor: const Color(0xFF1A2420),
+      color: AppColors.primary,
+      backgroundColor: AppColors.surface,
       child: GridView.builder(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -258,8 +212,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           childAspectRatio: 0.78,
         ),
         itemCount: _filteredRecipes.length,
-        itemBuilder: (context, i) =>
-            _RecipeGridCard(recipe: _filteredRecipes[i]),
+        itemBuilder: (context, i) => _RecipeGridCard(recipe: _filteredRecipes[i]),
       ),
     );
   }
@@ -269,42 +222,31 @@ class _RecipesScreenState extends State<RecipesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('🔍',
-              style: TextStyle(fontSize: 48)),
+          const Text('🔍', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 16),
           const Text('No encontramos recetas',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFE8F0EC))),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary)),
           const SizedBox(height: 8),
           Text(
             _searchQuery.isNotEmpty
                 ? 'Prueba con otro término de búsqueda'
                 : 'No hay recetas para este filtro',
-            style: const TextStyle(
-                fontSize: 13, color: Color(0xFF566860)),
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
           if (_searchQuery.isNotEmpty) ...[
             const SizedBox(height: 20),
             GestureDetector(
-              onTap: () {
-                _searchCtrl.clear();
-                _onSearch('');
-              },
+              onTap: () { _searchCtrl.clear(); _onSearch(''); },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A4A30),
+                  color: const Color(0xFFFFEEF1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: const Color(0xFF3ECF7C), width: 0.5),
+                  border: Border.all(color: AppColors.primary, width: 0.5),
                 ),
                 child: const Text('Limpiar búsqueda',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF3ECF7C),
+                    style: TextStyle(fontSize: 13, color: AppColors.primary,
                         fontWeight: FontWeight.w500)),
               ),
             ),
@@ -333,129 +275,96 @@ class _RecipeGridCard extends StatelessWidget {
 
   Color _getMealColor(String type) {
     switch (type) {
-      case 'desayuno': return const Color(0xFF3ECF7C);
-      case 'almuerzo': return const Color(0xFF38B4A0);
+      case 'desayuno': return const Color(0xFFFE2C55);
+      case 'almuerzo': return const Color(0xFF25F4EE);
       case 'cena':     return const Color(0xFF8B5CF6);
       case 'snack':    return const Color(0xFFF0A830);
       case 'bebida':   return const Color(0xFF4285F4);
-      default:         return const Color(0xFF3ECF7C);
+      default:         return AppColors.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final mealType = recipe['mealType'] as String? ?? '';
-    final totalMin = (recipe['prepMin'] as int? ?? 0) +
-        (recipe['cookMin'] as int? ?? 0);
-    final kcal = recipe['kcal']?.toInt() ?? 0;
+    final totalMin = (recipe['prepMin'] as int? ?? 0) + (recipe['cookMin'] as int? ?? 0);
+    final kcal     = recipe['kcal']?.toInt() ?? 0;
+    final color    = _getMealColor(mealType);
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RecipeDetailScreen(
-            id: recipe['id'].toString(),
-            recipe: recipe,
-          ),
-        ),
-      ),
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => RecipeDetailScreen(id: recipe['id'].toString(), recipe: recipe),
+      )),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2420),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: const Color(0xFF253028), width: 0.5),
+          border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // imagen
             Container(
               height: 110,
-              decoration: const BoxDecoration(
-                color: Color(0xFF212E28),
-                borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(16)),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Stack(
                 children: [
-                  Center(
-                    child: Text(
-                      recipe['imageEmoji'] ?? '🍽️',
-                      style: const TextStyle(fontSize: 44),
-                    ),
-                  ),
+                  Center(child: Text(recipe['imageEmoji'] ?? '🍽️',
+                      style: const TextStyle(fontSize: 44))),
                   Positioned(
                     top: 8, right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F1412)
-                            .withOpacity(0.8),
+                        color: const Color(0xFFE8F8EF),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: const Color(0xFF3ECF7C),
-                            width: 0.5),
+                        border: Border.all(color: const Color(0xFF3ECF7C), width: 0.5),
                       ),
                       child: const Text('✓ Apta',
-                          style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF3ECF7C))),
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600,
+                              color: Color(0xFF1A7A45))),
                     ),
                   ),
                 ],
               ),
             ),
+            // info
             Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _getMealColor(mealType).withOpacity(0.15),
+                      color: color.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      _getMealLabel(mealType),
-                      style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: _getMealColor(mealType),
-                          letterSpacing: 0.06),
-                    ),
+                    child: Text(_getMealLabel(mealType),
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600,
+                            color: color, letterSpacing: 0.06)),
                   ),
                   const SizedBox(height: 5),
                   Text(recipe['title'] ?? '',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFFE8F0EC),
-                          height: 1.3),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary, height: 1.3),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.timer_outlined,
-                              size: 11, color: Color(0xFF566860)),
-                          const SizedBox(width: 3),
-                          Text('$totalMin min',
-                              style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Color(0xFF566860))),
-                        ],
-                      ),
+                      Row(children: [
+                        const Icon(Icons.timer_outlined, size: 11, color: AppColors.textSecondary),
+                        const SizedBox(width: 3),
+                        Text('$totalMin min',
+                            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      ]),
                       Text('$kcal kcal',
-                          style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF566860))),
+                          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                     ],
                   ),
                 ],

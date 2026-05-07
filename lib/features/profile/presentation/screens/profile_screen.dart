@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -69,13 +70,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   _Profile?       _profile;
-  List<_Disease>  _allDiseases = [];
-  bool            _loading     = true;
-  bool            _saving      = false;
-  bool            _editMode    = false;
+  List<_Disease>  _allDiseases    = [];
+  bool            _loading        = true;
+  bool            _saving         = false;
+  bool            _editMode       = false;
   bool            _uploadingPhoto = false;
 
-  // Controladores de edición
   late TextEditingController _nameCtrl;
   late TextEditingController _weightCtrl;
   late TextEditingController _heightCtrl;
@@ -112,12 +112,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         sl<DioClient>().get('/users/$userId/profile'),
         sl<DioClient>().get(ApiConstants.diseases),
       ]);
-
       final profile  = _Profile.fromJson(results[0].data as Map<String, dynamic>);
       final diseases = (results[1].data as List<dynamic>)
           .map((d) => _Disease.fromJson(d as Map<String, dynamic>))
           .toList();
-
       setState(() {
         _profile     = profile;
         _allDiseases = diseases;
@@ -138,28 +136,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _sex           = p.sex           ?? 'masculino';
     _activityLevel = p.activityLevel ?? 'moderado';
     _healthGoal    = p.healthGoal    ?? 'controlar_enfermedad';
-    _selectedDiseases
-      ..clear()
-      ..addAll(p.diseases.map((d) => d.id));
+    _selectedDiseases..clear()..addAll(p.diseases.map((d) => d.id));
   }
 
   Future<void> _saveProfile() async {
     setState(() => _saving = true);
     try {
       final userId = await sl<SecureStorage>().getUserId();
-      final res = await sl<DioClient>().put(
-        '/users/$userId/profile',
-        {
-          'name':          _nameCtrl.text.trim(),
-          'birthYear':     int.tryParse(_birthYearCtrl.text),
-          'sex':           _sex,
-          'weightKg':      double.tryParse(_weightCtrl.text),
-          'heightCm':      double.tryParse(_heightCtrl.text),
-          'activityLevel': _activityLevel,
-          'healthGoal':    _healthGoal,
-          'diseaseIds':    _selectedDiseases.toList(),
-        },
-      );
+      final res = await sl<DioClient>().put('/users/$userId/profile', {
+        'name':          _nameCtrl.text.trim(),
+        'birthYear':     int.tryParse(_birthYearCtrl.text),
+        'sex':           _sex,
+        'weightKg':      double.tryParse(_weightCtrl.text),
+        'heightCm':      double.tryParse(_heightCtrl.text),
+        'activityLevel': _activityLevel,
+        'healthGoal':    _healthGoal,
+        'diseaseIds':    _selectedDiseases.toList(),
+      });
       setState(() {
         _profile  = _Profile.fromJson(res.data as Map<String, dynamic>);
         _editMode = false;
@@ -181,68 +174,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 85,
+      maxWidth: 512, maxHeight: 512, imageQuality: 85,
     );
     if (picked == null) return;
 
     setState(() => _uploadingPhoto = true);
     try {
-      // 1. Obtener el ID del usuario
-      final userId = await sl<SecureStorage>().getUserId();
-
-      // 2. PEDIR LA FIRMA AL BACKEND (Seguridad activada)
-      // Cambia la URL por la de tu servidor (ej: 10.0.2.2 para emulador o tu IP local)
+      final userId       = await sl<SecureStorage>().getUserId();
       final signatureRes = await sl<DioClient>().get('/users/$userId/upload-signature');
-      final sigData = signatureRes.data;
+      final sigData      = signatureRes.data;
 
-      // 3. SUBIR A CLOUDINARY USANDO LOS DATOS FIRMADOS
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          picked.path,
-          filename: picked.name,
-        ),
-        'api_key':   sigData['api_key'],    // Viene del servidor
-        'timestamp': sigData['timestamp'],  // Viene del servidor
-        'signature': sigData['signature'],  // Viene del servidor
-        'folder':    sigData['folder'],     // Viene del servidor (nutrimed/users/ID)
+        'file':      await MultipartFile.fromFile(picked.path, filename: picked.name),
+        'api_key':   sigData['api_key'],
+        'timestamp': sigData['timestamp'],
+        'signature': sigData['signature'],
+        'folder':    sigData['folder'],
       });
 
       final cloudRes = await Dio().post(
         'https://api.cloudinary.com/v1_1/${sigData['cloud_name']}/image/upload',
         data: formData,
       );
-
       final pictureUrl = cloudRes.data['secure_url'] as String;
 
-      // 4. GUARDAR URL EN EL BACKEND (Como lo tenías)
-      await sl<DioClient>().patch(
-        '/users/$userId/picture',
-        {'pictureUrl': pictureUrl},
-      );
+      await sl<DioClient>().patch('/users/$userId/picture', {'pictureUrl': pictureUrl});
 
-      // 5. ACTUALIZAR UI
       if (!mounted) return;
       setState(() {
         _profile = _Profile(
-          id:            _profile!.id,
-          name:          _profile!.name,
-          email:         _profile!.email,
-          picture:       pictureUrl,
-          sex:           _profile!.sex,
-          birthYear:     _profile!.birthYear,
-          weightKg:      _profile!.weightKg,
-          heightCm:      _profile!.heightCm,
-          activityLevel: _profile!.activityLevel,
-          healthGoal:    _profile!.healthGoal,
-          diseases:      _profile!.diseases,
+          id: _profile!.id, name: _profile!.name, email: _profile!.email,
+          picture: pictureUrl, sex: _profile!.sex, birthYear: _profile!.birthYear,
+          weightKg: _profile!.weightKg, heightCm: _profile!.heightCm,
+          activityLevel: _profile!.activityLevel, healthGoal: _profile!.healthGoal,
+          diseases: _profile!.diseases,
         );
       });
       _showSnack('Foto actualizada ✓', success: true);
-
     } catch (e) {
-      print("Error en upload: $e");
       _showSnack('Error al subir foto');
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
@@ -251,20 +220,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showSnack(String msg, {bool success = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: success
-          ? const Color(0xFF3ECF7C)
-          : const Color(0xFFE85D4A),
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: success ? const Color(0xFF22C55E) : AppColors.error,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1412),
+      backgroundColor: AppColors.background,
       body: _loading
-          ? const Center(child: CircularProgressIndicator(
-          color: Color(0xFF3ECF7C)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : SafeArea(
         child: Column(
           children: [
@@ -300,7 +266,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── TOP BAR ──
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -308,42 +273,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text('Mi Perfil',
-              style: TextStyle(fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFE8F0EC))),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
           GestureDetector(
             onTap: () {
               if (_editMode) {
-                setState(() {
-                  _editMode = false;
-                  if (_profile != null) _populateEditors(_profile!);
-                });
+                setState(() { _editMode = false; if (_profile != null) _populateEditors(_profile!); });
               } else {
                 setState(() => _editMode = true);
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: _editMode
-                    ? const Color(0xFF253028)
-                    : const Color(0xFF1A4A30),
+                color: _editMode ? const Color(0xFFF0F0F0) : const Color(0xFFFFEEF1),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: _editMode
-                        ? const Color(0xFF3E5045)
-                        : const Color(0xFF3ECF7C),
-                    width: 0.5),
+                  color: _editMode ? AppColors.border : AppColors.primary,
+                  width: 0.5,
+                ),
               ),
               child: Text(
                 _editMode ? 'Cancelar' : 'Editar',
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: _editMode
-                      ? const Color(0xFF8FA899)
-                      : const Color(0xFF3ECF7C),
+                  fontSize: 13, fontWeight: FontWeight.w500,
+                  color: _editMode ? AppColors.textSecondary : AppColors.primary,
                 ),
               ),
             ),
@@ -353,7 +307,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── AVATAR ──
   Widget _buildAvatar() {
     final initials = (_profile?.name.isNotEmpty == true)
         ? _profile!.name.trim().split(' ')
@@ -369,35 +322,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 88, height: 88,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF1A4A30),
-                border: Border.all(color: const Color(0xFF3ECF7C), width: 2),
+                color: const Color(0xFFFFEEF1),
+                border: Border.all(color: AppColors.primary, width: 2),
               ),
               child: ClipOval(
                 child: _uploadingPhoto
                     ? const Center(child: CircularProgressIndicator(
-                    color: Color(0xFF3ECF7C), strokeWidth: 2))
+                    color: AppColors.primary, strokeWidth: 2))
                     : (_profile?.picture != null && _profile!.picture!.isNotEmpty)
                     ? CachedNetworkImage(
                   imageUrl: _profile!.picture!,
                   fit: BoxFit.cover,
                   placeholder: (_, __) => const Center(
                       child: CircularProgressIndicator(
-                          color: Color(0xFF3ECF7C), strokeWidth: 2)),
+                          color: AppColors.primary, strokeWidth: 2)),
                   errorWidget: (_, __, ___) => Center(
                     child: Text(initials,
                         style: const TextStyle(fontSize: 28,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF3ECF7C))),
+                            color: AppColors.primary)),
                   ),
                 )
-                    : Center(
-                    child: Text(initials,
-                        style: const TextStyle(fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF3ECF7C)))),
+                    : Center(child: Text(initials,
+                    style: const TextStyle(fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary))),
               ),
             ),
-            // Botón cámara
             Positioned(
               bottom: 0, right: 0,
               child: GestureDetector(
@@ -405,12 +356,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Container(
                   width: 28, height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF3ECF7C),
+                    color: AppColors.primary,
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF0F1412), width: 2),
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: const Icon(Icons.camera_alt_rounded,
-                      size: 14, color: Color(0xFF0F1412)),
+                      size: 14, color: Colors.white),
                 ),
               ),
             ),
@@ -418,26 +369,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 10),
         Text(_profile?.name ?? '',
-            style: const TextStyle(fontSize: 18,
-                fontWeight: FontWeight.w600, color: Color(0xFFE8F0EC))),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary)),
         const SizedBox(height: 2),
         Text(_profile?.email ?? '',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF8FA899))),
+            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
       ],
     );
   }
 
-  // ── VISTA: INFO ──
   Widget _buildInfoSection() {
-    return _card(
-      title: 'INFORMACIÓN',
-      icon: '👤',
-      children: [
-        _infoRow('Nombre',    _profile?.name    ?? '-'),
-        _infoRow('Sexo',      _sexLabel(_profile?.sex)),
-        _infoRow('Año nac.',  _profile?.birthYear?.toString() ?? '-'),
-      ],
-    );
+    return _card(title: 'INFORMACIÓN', icon: '👤', children: [
+      _infoRow('Nombre',   _profile?.name ?? '-'),
+      _infoRow('Sexo',     _sexLabel(_profile?.sex)),
+      _infoRow('Año nac.', _profile?.birthYear?.toString() ?? '-'),
+    ]);
   }
 
   Widget _buildPhysicalSection() {
@@ -445,119 +391,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final h = _profile?.heightCm;
     String imc = '-';
     if (w != null && h != null && h > 0) {
-      final hm  = h / 100;
-      final val = w / (hm * hm);
-      imc = '${val.toStringAsFixed(1)} kg/m²';
+      final hm = h / 100;
+      imc = '${(w / (hm * hm)).toStringAsFixed(1)} kg/m²';
     }
-    return _card(
-      title: 'DATOS FÍSICOS',
-      icon: '📊',
-      children: [
-        _infoRow('Peso',       w != null ? '${w.toStringAsFixed(1)} kg' : '-'),
-        _infoRow('Altura',     h != null ? '${h.toStringAsFixed(0)} cm' : '-'),
-        _infoRow('IMC',        imc),
-        _infoRow('Actividad',  _activityLabel(_profile?.activityLevel)),
-      ],
-    );
+    return _card(title: 'DATOS FÍSICOS', icon: '📊', children: [
+      _infoRow('Peso',      w != null ? '${w.toStringAsFixed(1)} kg' : '-'),
+      _infoRow('Altura',    h != null ? '${h.toStringAsFixed(0)} cm' : '-'),
+      _infoRow('IMC',       imc),
+      _infoRow('Actividad', _activityLabel(_profile?.activityLevel)),
+    ]);
   }
 
   Widget _buildDiseasesSection() {
     final diseases = _profile?.diseases ?? [];
-    return _card(
-      title: 'MIS CONDICIONES',
-      icon: '🏥',
-      children: [
-        if (diseases.isEmpty)
-          const Text('Sin condiciones registradas',
-              style: TextStyle(fontSize: 13,
-                  color: Color(0xFF8FA899)))
-        else
-          Wrap(
-            spacing: 6, runSpacing: 6,
-            children: diseases.map((d) => Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A3D28),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: const Color(0xFF2A6040), width: 0.5),
-              ),
-              child: Text('${d.iconCode} ${d.name}',
-                  style: const TextStyle(fontSize: 12,
-                      color: Color(0xFFA8F0C6))),
-            )).toList(),
-          ),
-      ],
-    );
+    return _card(title: 'MIS CONDICIONES', icon: '🏥', children: [
+      if (diseases.isEmpty)
+        const Text('Sin condiciones registradas',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary))
+      else
+        Wrap(
+          spacing: 6, runSpacing: 6,
+          children: diseases.map((d) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEEF1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFB3C1), width: 0.5),
+            ),
+            child: Text('${d.iconCode} ${d.name}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFFAA1530))),
+          )).toList(),
+        ),
+    ]);
   }
 
   Widget _buildGoalSection() {
-    return _card(
-      title: 'OBJETIVO',
-      icon: '🎯',
-      children: [
-        _infoRow('Meta', _goalLabel(_profile?.healthGoal)),
-      ],
-    );
+    return _card(title: 'OBJETIVO', icon: '🎯', children: [
+      _infoRow('Meta', _goalLabel(_profile?.healthGoal)),
+    ]);
   }
 
-  // ── FORMULARIO DE EDICIÓN ──
   Widget _buildEditForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Nombre
         _formLabel('Nombre completo'),
         _inputField(_nameCtrl, 'Tu nombre'),
         const SizedBox(height: 16),
 
-        // Sexo
         _formLabel('Sexo biológico'),
         Row(children: [
           _sexBtn('masculino', '👨', 'Masculino'),
           const SizedBox(width: 10),
-          _sexBtn('femenino', '👩', 'Femenino'),
+          _sexBtn('femenino',  '👩', 'Femenino'),
         ]),
         const SizedBox(height: 16),
 
-        // Datos físicos
         _formLabel('Año de nacimiento'),
         _inputField(_birthYearCtrl, 'Ej: 1990', TextInputType.number),
         const SizedBox(height: 12),
+
         _formLabel('Peso y altura'),
         Row(children: [
-          Expanded(child: _inputField(
-              _weightCtrl, 'Peso (kg)', TextInputType.number)),
+          Expanded(child: _inputField(_weightCtrl, 'Peso (kg)',   TextInputType.number)),
           const SizedBox(width: 12),
-          Expanded(child: _inputField(
-              _heightCtrl, 'Altura (cm)', TextInputType.number)),
+          Expanded(child: _inputField(_heightCtrl, 'Altura (cm)', TextInputType.number)),
         ]),
         const SizedBox(height: 16),
 
-        // Nivel de actividad
         _formLabel('Nivel de actividad'),
         ..._activityOptions(),
         const SizedBox(height: 16),
 
-        // Objetivo
         _formLabel('Mi objetivo'),
         ..._goalOptions(),
         const SizedBox(height: 16),
 
-        // Condiciones
         _formLabel('Mis condiciones'),
         _buildDiseasePicker(),
         const SizedBox(height: 24),
 
-        // Botón guardar
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: _saving ? null : _saveProfile,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3ECF7C),
-              foregroundColor: const Color(0xFF0F1412),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 15),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
@@ -565,11 +485,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: _saving
                 ? const SizedBox(width: 20, height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF0F1412)))
+                    strokeWidth: 2, color: Colors.white))
                 : const Text('Guardar cambios',
-                style: TextStyle(fontSize: 16,
-                    fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ),
       ],
@@ -579,25 +497,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildDiseasePicker() {
     return Column(
       children: [
-        // Ninguna
         _diseaseOption(
-          id:       -1,
-          icon:     '✅',
-          name:     'Ninguna',
+          id: -1, icon: '✅', name: 'Ninguna',
           selected: _selectedDiseases.isEmpty,
-          onTap:    () => setState(() => _selectedDiseases.clear()),
+          onTap: () => setState(() => _selectedDiseases.clear()),
         ),
         ..._allDiseases.map((d) => _diseaseOption(
-          id:       d.id,
-          icon:     d.iconCode,
-          name:     d.name,
+          id: d.id, icon: d.iconCode, name: d.name,
           selected: _selectedDiseases.contains(d.id),
-          onTap:    () => setState(() {
-            if (_selectedDiseases.contains(d.id)) {
-              _selectedDiseases.remove(d.id);
-            } else {
-              _selectedDiseases.add(d.id);
-            }
+          onTap: () => setState(() {
+            if (_selectedDiseases.contains(d.id)) _selectedDiseases.remove(d.id);
+            else _selectedDiseases.add(d.id);
           }),
         )),
       ],
@@ -606,39 +516,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   List<Widget> _activityOptions() {
     final options = [
-      {'value': 'sedentario', 'label': 'Sedentario',  'sub': 'Poco o ningún ejercicio'},
-      {'value': 'moderado',   'label': 'Moderado',    'sub': 'Ejercicio 1-3 días/semana'},
-      {'value': 'activo',     'label': 'Activo',      'sub': 'Ejercicio 4-5 días/semana'},
-      {'value': 'muy_activo', 'label': 'Muy activo',  'sub': 'Ejercicio intenso diario'},
+      {'value': 'sedentario', 'label': 'Sedentario', 'sub': 'Poco o ningún ejercicio'},
+      {'value': 'moderado',   'label': 'Moderado',   'sub': 'Ejercicio 1-3 días/semana'},
+      {'value': 'activo',     'label': 'Activo',     'sub': 'Ejercicio 4-5 días/semana'},
+      {'value': 'muy_activo', 'label': 'Muy activo', 'sub': 'Ejercicio intenso diario'},
     ];
     return options.map((a) => GestureDetector(
       onTap: () => setState(() => _activityLevel = a['value']!),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12),
-        decoration: _selectionDecor(
-            _activityLevel == a['value']),
-        child: Row(
-          children: [
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(a['label']!,
-                    style: TextStyle(fontSize: 14,
-                        fontWeight: _activityLevel == a['value']
-                            ? FontWeight.w600 : FontWeight.w400,
-                        color: const Color(0xFFE8F0EC))),
-                Text(a['sub']!,
-                    style: const TextStyle(fontSize: 11,
-                        color: Color(0xFF8FA899))),
-              ],
-            )),
-            if (_activityLevel == a['value'])
-              const Icon(Icons.check_circle_rounded,
-                  color: Color(0xFF3ECF7C), size: 18),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: _selectionDecor(_activityLevel == a['value']),
+        child: Row(children: [
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(a['label']!,
+                  style: TextStyle(fontSize: 14,
+                      fontWeight: _activityLevel == a['value']
+                          ? FontWeight.w600 : FontWeight.w400,
+                      color: AppColors.textPrimary)),
+              Text(a['sub']!,
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            ],
+          )),
+          if (_activityLevel == a['value'])
+            const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+        ]),
       ),
     )).toList();
   }
@@ -655,50 +559,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: () => setState(() => _healthGoal = g['value']!),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: _selectionDecor(_healthGoal == g['value']),
-        child: Row(
-          children: [
-            Text(g['icon']!,
-                style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 12),
-            Text(g['label']!,
-                style: TextStyle(fontSize: 14,
-                    fontWeight: _healthGoal == g['value']
-                        ? FontWeight.w600 : FontWeight.w400,
-                    color: const Color(0xFFE8F0EC))),
-            const Spacer(),
-            if (_healthGoal == g['value'])
-              const Icon(Icons.check_circle_rounded,
-                  color: Color(0xFF3ECF7C), size: 18),
-          ],
-        ),
+        child: Row(children: [
+          Text(g['icon']!, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 12),
+          Text(g['label']!,
+              style: TextStyle(fontSize: 14,
+                  fontWeight: _healthGoal == g['value']
+                      ? FontWeight.w600 : FontWeight.w400,
+                  color: AppColors.textPrimary)),
+          const Spacer(),
+          if (_healthGoal == g['value'])
+            const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+        ]),
       ),
     )).toList();
   }
 
-  // ── LOGOUT ──
   Widget _buildLogoutButton() {
     return GestureDetector(
       onTap: () => showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          backgroundColor: const Color(0xFF1A2420),
+          backgroundColor: AppColors.surface,
           title: const Text('Cerrar sesión',
-              style: TextStyle(color: Color(0xFFE8F0EC))),
+              style: TextStyle(color: AppColors.textPrimary)),
           content: const Text('¿Estás seguro que deseas salir?',
-              style: TextStyle(color: Color(0xFF8FA899))),
+              style: TextStyle(color: AppColors.textSecondary)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar',
-                  style: TextStyle(color: Color(0xFF8FA899))),
+                  style: TextStyle(color: AppColors.textSecondary)),
             ),
             TextButton(
               onPressed: () { Navigator.pop(context); _logout(); },
-              child: const Text('Salir',
-                  style: TextStyle(color: Color(0xFFE85D4A))),
+              child: Text('Salir', style: TextStyle(color: AppColors.error)),
             ),
           ],
         ),
@@ -707,38 +604,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2420),
+          color: const Color(0xFFFFF0EE),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: const Color(0xFFE85D4A), width: 0.5),
+          border: Border.all(color: AppColors.error, width: 0.5),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.logout_rounded,
-                color: Color(0xFFE85D4A), size: 18),
-            SizedBox(width: 8),
+            Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
+            const SizedBox(width: 8),
             Text('Cerrar sesión',
-                style: TextStyle(fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFFE85D4A))),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500,
+                    color: AppColors.error)),
           ],
         ),
       ),
     );
   }
 
-  // ── HELPERS DE UI ──
-  Widget _card({required String title, required String icon,
-    required List<Widget> children}) {
+  // ── HELPERS ──
+  Widget _card({required String title, required String icon, required List<Widget> children}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2420),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: const Color(0xFF253028), width: 0.5),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,10 +639,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(icon, style: const TextStyle(fontSize: 14)),
             const SizedBox(width: 6),
             Text(title,
-                style: const TextStyle(fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF3ECF7C),
-                    letterSpacing: 0.08)),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                    color: AppColors.primary, letterSpacing: 0.08)),
           ]),
           const SizedBox(height: 12),
           ...children,
@@ -765,13 +655,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(fontSize: 13,
-                  color: Color(0xFF8FA899))),
-          Text(value,
-              style: const TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFE8F0EC))),
+          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary)),
         ],
       ),
     );
@@ -780,9 +666,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _formLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(text,
-        style: const TextStyle(fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF8FA899))),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary)),
   );
 
   Widget _inputField(TextEditingController ctrl, String hint,
@@ -790,98 +675,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return TextField(
       controller: ctrl,
       keyboardType: type,
-      style: const TextStyle(color: Color(0xFFE8F0EC), fontSize: 14),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-            color: Color(0xFF566860), fontSize: 13),
+        hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         filled: true,
-        fillColor: const Color(0xFF1A2420),
+        fillColor: AppColors.background,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-                color: Color(0xFF253028), width: 0.5)),
+            borderSide: const BorderSide(color: AppColors.border, width: 0.5)),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-                color: Color(0xFF253028), width: 0.5)),
+            borderSide: const BorderSide(color: AppColors.border, width: 0.5)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-                color: Color(0xFF3ECF7C))),
-        contentPadding: const EdgeInsets.symmetric(
-            vertical: 12, horizontal: 14),
+            borderSide: const BorderSide(color: AppColors.primary)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       ),
     );
   }
 
-  Widget _sexBtn(String value, String emoji, String label) =>
-      Expanded(
-        child: GestureDetector(
-          onTap: () => setState(() => _sex = value),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: _selectionDecor(_sex == value),
-            child: Column(children: [
-              Text(emoji, style: const TextStyle(fontSize: 26)),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(fontSize: 13,
-                  fontWeight: _sex == value
-                      ? FontWeight.w600 : FontWeight.w400,
-                  color: _sex == value
-                      ? const Color(0xFFE8F0EC)
-                      : const Color(0xFF8FA899))),
-            ]),
-          ),
-        ),
-      );
+  Widget _sexBtn(String value, String emoji, String label) => Expanded(
+    child: GestureDetector(
+      onTap: () => setState(() => _sex = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: _selectionDecor(_sex == value),
+        child: Column(children: [
+          Text(emoji, style: const TextStyle(fontSize: 26)),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 13,
+              fontWeight: _sex == value ? FontWeight.w600 : FontWeight.w400,
+              color: _sex == value ? AppColors.textPrimary : AppColors.textSecondary)),
+        ]),
+      ),
+    ),
+  );
 
   Widget _diseaseOption({required int id, required String icon,
-    required String name, required bool selected,
-    required VoidCallback onTap}) {
+    required String name, required bool selected, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: _selectionDecor(selected),
         child: Row(children: [
           Text(icon, style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 12),
           Expanded(child: Text(name,
               style: TextStyle(fontSize: 14,
-                  fontWeight: selected
-                      ? FontWeight.w600 : FontWeight.w400,
-                  color: selected
-                      ? const Color(0xFFE8F0EC)
-                      : const Color(0xFF8FA899)))),
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? AppColors.textPrimary : AppColors.textSecondary))),
           selected
-              ? const Icon(Icons.check_circle_rounded,
-              color: Color(0xFF3ECF7C), size: 18)
+              ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18)
               : Container(width: 18, height: 18,
               decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                      color: const Color(0xFF566860)))),
+                  border: Border.all(color: AppColors.border))),
         ]),
       ),
     );
   }
 
   BoxDecoration _selectionDecor(bool selected) => BoxDecoration(
-    color: selected
-        ? const Color(0xFF1A4A30)
-        : const Color(0xFF1A2420),
+    color: selected ? const Color(0xFFFFEEF1) : AppColors.surface,
     borderRadius: BorderRadius.circular(12),
     border: Border.all(
-        color: selected
-            ? const Color(0xFF3ECF7C)
-            : const Color(0xFF253028),
+        color: selected ? AppColors.primary : AppColors.border,
         width: selected ? 1.5 : 0.5),
   );
 
-  // ── LABELS ──
   String _sexLabel(String? sex) {
     if (sex == 'masculino') return 'Masculino';
     if (sex == 'femenino')  return 'Femenino';
@@ -889,12 +753,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _activityLabel(String? a) {
-    const m = {
-      'sedentario': 'Sedentario',
-      'moderado':   'Moderado',
-      'activo':     'Activo',
-      'muy_activo': 'Muy activo',
-    };
+    const m = {'sedentario': 'Sedentario', 'moderado': 'Moderado',
+      'activo': 'Activo', 'muy_activo': 'Muy activo'};
     return m[a] ?? '-';
   }
 
