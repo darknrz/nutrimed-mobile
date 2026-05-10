@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -77,9 +78,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool            _uploadingPhoto = false;
 
   late TextEditingController _nameCtrl;
-  late TextEditingController _weightCtrl;
-  late TextEditingController _heightCtrl;
-  late TextEditingController _birthYearCtrl;
+
+  // Pickers numéricos (reemplazan controllers de texto)
+  int?   _editBirthYear;
+  int?   _editWeightKg;
+  int?   _editHeightCm;
+
   String  _sex           = 'masculino';
   String  _activityLevel = 'moderado';
   String  _healthGoal    = 'controlar_enfermedad';
@@ -88,19 +92,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl      = TextEditingController();
-    _weightCtrl    = TextEditingController();
-    _heightCtrl    = TextEditingController();
-    _birthYearCtrl = TextEditingController();
+    _nameCtrl = TextEditingController();
     _loadData();
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _weightCtrl.dispose();
-    _heightCtrl.dispose();
-    _birthYearCtrl.dispose();
     super.dispose();
   }
 
@@ -129,13 +127,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _populateEditors(_Profile p) {
-    _nameCtrl.text      = p.name;
-    _weightCtrl.text    = p.weightKg?.toString()  ?? '';
-    _heightCtrl.text    = p.heightCm?.toString()  ?? '';
-    _birthYearCtrl.text = p.birthYear?.toString() ?? '';
-    _sex           = p.sex           ?? 'masculino';
-    _activityLevel = p.activityLevel ?? 'moderado';
-    _healthGoal    = p.healthGoal    ?? 'controlar_enfermedad';
+    _nameCtrl.text  = p.name;
+    _editBirthYear  = p.birthYear;
+    _editWeightKg   = p.weightKg?.toInt();
+    _editHeightCm   = p.heightCm?.toInt();
+    _sex            = p.sex           ?? 'masculino';
+    _activityLevel  = p.activityLevel ?? 'moderado';
+    _healthGoal     = p.healthGoal    ?? 'controlar_enfermedad';
     _selectedDiseases..clear()..addAll(p.diseases.map((d) => d.id));
   }
 
@@ -145,10 +143,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = await sl<SecureStorage>().getUserId();
       final res = await sl<DioClient>().put('/users/$userId/profile', {
         'name':          _nameCtrl.text.trim(),
-        'birthYear':     int.tryParse(_birthYearCtrl.text),
+        'birthYear':     _editBirthYear,
         'sex':           _sex,
-        'weightKg':      double.tryParse(_weightCtrl.text),
-        'heightCm':      double.tryParse(_heightCtrl.text),
+        'weightKg':      _editWeightKg,
+        'heightCm':      _editHeightCm,
         'activityLevel': _activityLevel,
         'healthGoal':    _healthGoal,
         'diseaseIds':    _selectedDiseases.toList(),
@@ -197,7 +195,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         data: formData,
       );
       final pictureUrl = cloudRes.data['secure_url'] as String;
-
       await sl<DioClient>().patch('/users/$userId/picture', {'pictureUrl': pictureUrl});
 
       if (!mounted) return;
@@ -225,6 +222,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ));
   }
 
+  // ── PICKERS ───────────────────────────────────────────────
+  void _showYearPicker() {
+    final now      = DateTime.now().year;
+    int   tempYear = _editBirthYear ?? 1990;
+    final years    = List.generate(83, (i) => now - 10 - i);
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (_) => _pickerSheet(
+        onCancel: () => Navigator.pop(context),
+        onDone:   () { setState(() => _editBirthYear = tempYear); Navigator.pop(context); },
+        child: CupertinoPicker(
+          scrollController: FixedExtentScrollController(
+              initialItem: years.indexOf(tempYear).clamp(0, years.length - 1)),
+          itemExtent: 40,
+          onSelectedItemChanged: (i) => tempYear = years[i],
+          children: years.map((y) => Center(
+            child: Text('$y', style: const TextStyle(fontSize: 18, color: Colors.black)),
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showWeightPicker() {
+    int   tempWeight = _editWeightKg ?? 70;
+    final weights    = List.generate(171, (i) => i + 30);
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (_) => _pickerSheet(
+        onCancel: () => Navigator.pop(context),
+        onDone:   () { setState(() => _editWeightKg = tempWeight); Navigator.pop(context); },
+        child: CupertinoPicker(
+          scrollController: FixedExtentScrollController(
+              initialItem: (tempWeight - 30).clamp(0, 170)),
+          itemExtent: 40,
+          onSelectedItemChanged: (i) => tempWeight = weights[i],
+          children: weights.map((w) => Center(
+            child: Text('$w kg', style: const TextStyle(fontSize: 18, color: Colors.black)),
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showHeightPicker() {
+    int   tempHeight = _editHeightCm ?? 165;
+    final heights    = List.generate(121, (i) => i + 120);
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (_) => _pickerSheet(
+        onCancel: () => Navigator.pop(context),
+        onDone:   () { setState(() => _editHeightCm = tempHeight); Navigator.pop(context); },
+        child: CupertinoPicker(
+          scrollController: FixedExtentScrollController(
+              initialItem: (tempHeight - 120).clamp(0, 120)),
+          itemExtent: 40,
+          onSelectedItemChanged: (i) => tempHeight = heights[i],
+          children: heights.map((h) => Center(
+            child: Text('$h cm', style: const TextStyle(fontSize: 18, color: Colors.black)),
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _pickerSheet({
+    required VoidCallback onCancel,
+    required VoidCallback onDone,
+    required Widget child,
+  }) {
+    return Container(
+      height: 320,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFEBEBEB), width: 0.5)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: onCancel,
+                child: const Text('Cancelar',
+                    style: TextStyle(fontSize: 16, color: Color(0xFF888888))),
+              ),
+              Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDDDDD),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              GestureDetector(
+                onTap: onDone,
+                child: Text('Listo',
+                    style: TextStyle(fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary)),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: child),
+      ]),
+    );
+  }
+
+  // ── BUILD ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,7 +391,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           GestureDetector(
             onTap: () {
               if (_editMode) {
-                setState(() { _editMode = false; if (_profile != null) _populateEditors(_profile!); });
+                setState(() {
+                  _editMode = false;
+                  if (_profile != null) _populateEditors(_profile!);
+                });
               } else {
                 setState(() => _editMode = true);
               }
@@ -378,6 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ── VISTA INFO ────────────────────────────────────────────
   Widget _buildInfoSection() {
     return _card(title: 'INFORMACIÓN', icon: '👤', children: [
       _infoRow('Nombre',   _profile?.name ?? '-'),
@@ -431,13 +548,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ]);
   }
 
+  // ── FORMULARIO EDICIÓN ────────────────────────────────────
   Widget _buildEditForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _formLabel('Nombre completo'),
         _inputField(_nameCtrl, 'Tu nombre'),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         _formLabel('Sexo biológico'),
         Row(children: [
@@ -445,19 +563,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(width: 10),
           _sexBtn('femenino',  '👩', 'Femenino'),
         ]),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         _formLabel('Año de nacimiento'),
-        _inputField(_birthYearCtrl, 'Ej: 1990', TextInputType.number),
-        const SizedBox(height: 12),
-
-        _formLabel('Peso y altura'),
-        Row(children: [
-          Expanded(child: _inputField(_weightCtrl, 'Peso (kg)',   TextInputType.number)),
-          const SizedBox(width: 12),
-          Expanded(child: _inputField(_heightCtrl, 'Altura (cm)', TextInputType.number)),
-        ]),
+        _pickerTile(
+          icon:  Icons.cake_outlined,
+          label: _editBirthYear != null ? '$_editBirthYear' : 'Seleccionar año',
+          onTap: _showYearPicker,
+        ),
         const SizedBox(height: 16),
+
+        _formLabel('Peso'),
+        _pickerTile(
+          icon:  Icons.monitor_weight_outlined,
+          label: _editWeightKg != null ? '$_editWeightKg kg' : 'Seleccionar peso',
+          onTap: _showWeightPicker,
+        ),
+        const SizedBox(height: 16),
+
+        _formLabel('Altura'),
+        _pickerTile(
+          icon:  Icons.straighten_outlined,
+          label: _editHeightCm != null ? '$_editHeightCm cm' : 'Seleccionar altura',
+          onTap: _showHeightPicker,
+        ),
+        const SizedBox(height: 20),
 
         _formLabel('Nivel de actividad'),
         ..._activityOptions(),
@@ -491,6 +621,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _pickerTile({required IconData icon, required String label,
+    required VoidCallback onTap}) {
+    final hasValue = !label.contains('Seleccionar');
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasValue ? AppColors.primary : AppColors.border,
+            width: hasValue ? 1.5 : 0.5,
+          ),
+        ),
+        child: Row(children: [
+          Icon(icon, size: 20,
+              color: hasValue ? AppColors.primary : AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Text(label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                color: hasValue ? AppColors.textPrimary : AppColors.textSecondary,
+              )),
+          const Spacer(),
+          const Icon(Icons.chevron_right_rounded,
+              size: 20, color: AppColors.textSecondary),
+        ]),
+      ),
     );
   }
 
@@ -622,8 +785,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── HELPERS ──
-  Widget _card({required String title, required String icon, required List<Widget> children}) {
+  // ── HELPERS ───────────────────────────────────────────────
+  Widget _card({required String title, required String icon,
+    required List<Widget> children}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -655,9 +819,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary)),
+          Text(label,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary)),
         ],
       ),
     );
@@ -704,9 +870,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(children: [
           Text(emoji, style: const TextStyle(fontSize: 26)),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 13,
-              fontWeight: _sex == value ? FontWeight.w600 : FontWeight.w400,
-              color: _sex == value ? AppColors.textPrimary : AppColors.textSecondary)),
+          Text(label,
+              style: TextStyle(fontSize: 13,
+                  fontWeight: _sex == value ? FontWeight.w600 : FontWeight.w400,
+                  color: _sex == value
+                      ? AppColors.textPrimary : AppColors.textSecondary)),
         ]),
       ),
     ),
@@ -728,8 +896,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: selected ? AppColors.textPrimary : AppColors.textSecondary))),
           selected
-              ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18)
-              : Container(width: 18, height: 18,
+              ? const Icon(Icons.check_circle_rounded,
+              color: AppColors.primary, size: 18)
+              : Container(
+              width: 18, height: 18,
               decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.border))),
