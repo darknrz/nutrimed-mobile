@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/constants/app_colors.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void initState() {
     super.initState();
     _porciones = (widget.recipe?['servings'] as int?) ?? 1;
+
   }
 
   Color _getMealColor(String type) {
@@ -52,8 +54,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     return labels[type] ?? type;
   }
 
-  int    get _baseServings => (widget.recipe!['servings'] as int?) ?? 1;
+  int    get _baseServings => (widget.recipe?['servings'] as int?) ?? 1;
   double get _factor       => _porciones / _baseServings;
+
+  // ── IMAGEN: URL de Cloudinary o fallback con emoji ────────
+  String? get _imageUrl {
+    final url = widget.recipe?['imageUrl'] as String?;
+    if (url != null && url.isNotEmpty) return url;
+    return null;
+  }
+
+  String get _imageEmoji => widget.recipe?['imageEmoji'] as String? ?? '🍽️';
 
   // ── PORCIÓN PICKER ────────────────────────────────────────
   void _showPortionPicker() {
@@ -147,7 +158,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Título y descripción
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                   child: Column(
@@ -165,13 +175,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
                 _buildPortionSelector(),
                 const SizedBox(height: 20),
-
                 _buildTabs(),
                 const SizedBox(height: 20),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _buildTabContent(mealType),
@@ -185,10 +192,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  // ── APP BAR ───────────────────────────────────────────────
+  // ── APP BAR con imagen real de Cloudinary ─────────────────
   Widget _buildAppBar(BuildContext context, String mealType) {
     return SliverAppBar(
-      expandedHeight: 220,
+      expandedHeight: 260,
       pinned: true,
       backgroundColor: AppColors.surface,
       elevation: 0,
@@ -221,13 +228,35 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          color: const Color(0xFFF7F7F7),
-          child: Center(
-            child: Text(widget.recipe!['imageEmoji'] ?? '🍽️',
-                style: const TextStyle(fontSize: 80)),
-          ),
-        ),
+        background: _buildHeroImage(),
+      ),
+    );
+  }
+
+  // ── HERO IMAGE: foto real o emoji de fallback ─────────────
+  Widget _buildHeroImage() {
+    if (_imageUrl != null) {
+      return CachedNetworkImage(
+        imageUrl: _imageUrl!,
+        fit: BoxFit.cover,
+        // Transformación Cloudinary: recorte centrado 800x520, calidad auto
+        // Si quieres optimizar el tamaño, puedes usar la URL con transformaciones:
+        // imageUrl: _imageUrl!.replaceFirst('/upload/', '/upload/c_fill,w_800,h_520,q_auto,f_auto/'),
+        placeholder: (context, url) => _emojiPlaceholder(loading: true),
+        errorWidget: (context, url, error) => _emojiPlaceholder(),
+      );
+    }
+    return _emojiPlaceholder();
+  }
+
+  /// Fallback cuando no hay imagen: fondo gris suave + emoji
+  Widget _emojiPlaceholder({bool loading = false}) {
+    return Container(
+      color: const Color(0xFFF0F0F0),
+      child: Center(
+        child: loading
+            ? const CircularProgressIndicator(color: AppColors.primary)
+            : Text(_imageEmoji, style: const TextStyle(fontSize: 80)),
       ),
     );
   }
@@ -285,8 +314,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ],
                 ),
               ),
-
-              // Contador rápido
               GestureDetector(
                 onTap: _porciones > 1
                     ? () => setState(() => _porciones--)
@@ -312,7 +339,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Text('$_porciones',
@@ -320,7 +346,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ),
-
               GestureDetector(
                 onTap: _porciones < 20
                     ? () => setState(() => _porciones++)
@@ -402,11 +427,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   // ── TAB 1: INFORMACIÓN ────────────────────────────────────
   Widget _buildInfoTab(String mealType) {
-    final prepMin    = (widget.recipe!['prepMin'] as int?) ?? 0;
-    final cookMin    = (widget.recipe!['cookMin'] as int?) ?? 0;
-    final cookScaled = (cookMin * _factor).round();
+    final prepMin     = (widget.recipe!['prepMin'] as int?) ?? 0;
+    final cookMin     = (widget.recipe!['cookMin'] as int?) ?? 0;
+    final cookScaled  = (cookMin * _factor).round();
     final totalScaled = prepMin + cookScaled;
-    final mealColor  = _getMealColor(mealType);
+    final mealColor   = _getMealColor(mealType);
 
     return Container(
       width: double.infinity,
@@ -430,7 +455,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     color: mealColor)),
           ),
           const SizedBox(height: 14),
-
           _infoRow('⚡', 'Calorías',
               '${((widget.recipe!['kcal'] as double? ?? 0) * _factor).toStringAsFixed(0)} kcal'),
           _infoRow('💪', 'Proteína',
@@ -443,9 +467,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               '${((widget.recipe!['sodiumMg'] as double? ?? 0) * _factor).toStringAsFixed(0)}mg'),
           _infoRow('🌿', 'Fibra',
               '${((widget.recipe!['fiberG'] as double? ?? 0) * _factor).toStringAsFixed(1)}g'),
-
           Divider(color: AppColors.border, height: 24),
-
           _infoRow('⏱️', 'Preparación', '$prepMin min'),
           _infoRow('🍳', 'Cocción',     '$cookScaled min'),
           _infoRow('⏰', 'Tiempo total', '$totalScaled min'),
@@ -502,7 +524,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ),
             ]),
           ),
-
         ...ingredients.map((ing) {
           final name = ing is Map
               ? (ing['name'] ?? ing['ingredientName'] ?? ing.toString())
@@ -666,14 +687,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ),
           ]),
           const SizedBox(height: 16),
-
           _compatItem('✓', 'Receta saludable',
               'Ingredientes naturales sin ultra-procesados',
               const Color(0xFF22C55E)),
           _compatItem('✓', 'Sin ultraprocesados',
               'Preparación con ingredientes frescos',
               const Color(0xFF22C55E)),
-
           if (sodium < 300)
             _compatItem('✓', 'Bajo en sodio',
                 '${sodium.toStringAsFixed(0)}mg — recomendado para hipertensión',
@@ -682,7 +701,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             _compatItem('!', 'Sodio moderado',
                 '${sodium.toStringAsFixed(0)}mg — consumir con precaución',
                 const Color(0xFFF0A830)),
-
           if (kcal < 300)
             _compatItem('✓', 'Bajo en calorías',
                 '${kcal.toInt()} kcal — ideal para control de peso',
@@ -695,12 +713,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             _compatItem('!', 'Alta energía',
                 '${kcal.toInt()} kcal — moderar la porción',
                 AppColors.error),
-
           if (fiber >= 3)
             _compatItem('✓', 'Rico en fibra',
                 '${fiber.toStringAsFixed(1)}g — bueno para glucosa y digestión',
                 const Color(0xFF22C55E)),
-
           if (protein >= 15)
             _compatItem('✓', 'Alto en proteína',
                 '${protein.toStringAsFixed(1)}g — apoya masa muscular',

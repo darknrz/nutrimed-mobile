@@ -13,27 +13,21 @@ class AppRouter {
   static final router = GoRouter(
     initialLocation: '/login',
     redirect: (context, state) async {
-      final storage    = sl<SecureStorage>();
-      final hasToken   = await storage.hasToken();
-      final location   = state.matchedLocation;
-      final onLogin    = location == '/login';
-      final onOnboard  = location == '/onboarding';
+      final storage   = sl<SecureStorage>();
+      final hasToken  = await storage.hasToken();
+      final location  = state.matchedLocation;
+      final onLogin   = location == '/login';
+      final onOnboard = location == '/onboarding';
 
-      // Sin token → siempre al login
-      if (!hasToken) {
-        return onLogin ? null : '/login';
-      }
+      if (!hasToken) return onLogin ? null : '/login';
 
-      // Con token en login → verificar onboarding
       if (hasToken && onLogin) {
         final needsOnboarding = await storage.getNeedsOnboarding();
         return needsOnboarding ? '/onboarding' : '/home';
       }
 
-      // Con token en onboarding → permitir pasar
       if (hasToken && onOnboard) return null;
 
-      // Resto de rutas con token → permitir
       return null;
     },
     routes: [
@@ -45,22 +39,20 @@ class AppRouter {
           builder: (c, s) => const HomeScreen()),
       GoRoute(path: '/recipes',
           builder: (c, s) => const RecipesScreen()),
+
+      // ── ÚNICA ruta de detalle — siempre pasa el recipe por extra ──
       GoRoute(
         path: '/recipes/:id',
-        builder: (c, s) =>
-            RecipeDetailScreen(id: s.pathParameters['id']!),
+        builder: (c, s) => RecipeDetailScreen(
+          id:     s.pathParameters['id']!,
+          recipe: s.extra as Map<String, dynamic>?,
+        ),
       ),
+
       GoRoute(path: '/chat',
           builder: (c, s) => const ChatbotScreen()),
       GoRoute(path: '/profile',
           builder: (c, s) => const ProfileScreen()),
-      GoRoute(
-        path: '/recipes/:id',
-        builder: (c, s) => RecipeDetailScreen(
-          id: s.pathParameters['id']!,
-          recipe: s.extra as Map<String, dynamic>?,
-        ),
-      ),
     ],
   );
 }
