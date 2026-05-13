@@ -128,6 +128,14 @@ class _HomeContentState extends State<_HomeContent> {
       final name = await storage.getName() ?? '';
       if (mounted) setState(() => _userName = name);
 
+      final checkinRes = await sl<DioClient>()
+          .get('/checkin/status/$userId');
+      final needed = checkinRes.data['needed'] as bool? ?? false;
+      if (needed && mounted) {
+        context.go('/checkin');
+        return;
+      }
+
       final results = await Future.wait([
         sl<DioClient>().get('${ApiConstants.recommended}/$userId'),
         sl<DioClient>().get('${ApiConstants.onboarding}/$userId/needed'),

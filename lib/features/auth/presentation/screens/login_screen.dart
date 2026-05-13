@@ -41,11 +41,18 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithGoogle() async {
     setState(() => _loading = true);
     try {
+      // Forzar cierre de sesión previa para obtener token fresco
+      await _googleSignIn.signOut();
+
       final account = await _googleSignIn.signIn();
       if (account == null) return;
+
+      // Limpiar cache del token anterior
+      await account.clearAuthCache();
       final auth    = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null) throw Exception('No se obtuvo idToken');
+
       final res = await sl<DioClient>().post(
         ApiConstants.authGoogle, {'idToken': idToken},
       );

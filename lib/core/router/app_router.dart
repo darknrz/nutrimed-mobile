@@ -8,6 +8,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../storage/secure_storage.dart';
 import '../di/injection.dart';
+import '../../features/checkin/presentation/screens/checkin_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
@@ -53,6 +54,8 @@ class AppRouter {
           builder: (c, s) => const ChatbotScreen()),
       GoRoute(path: '/profile',
           builder: (c, s) => const ProfileScreen()),
+      GoRoute(path: '/checkin',
+          builder: (c, s) => const CheckinScreen()),
     ],
   );
 }
