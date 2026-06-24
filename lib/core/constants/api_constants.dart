@@ -3,9 +3,14 @@ import 'dart:io';
 class ApiConstants {
   ApiConstants._();
 
+  // ✅ Cambia esta IP por la de tu PC en WiFi
+  static const String _localNetworkIp = '192.168.1.57';
+
   static String get baseUrl {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8080/api';
+      return 'http://$_localNetworkIp:8080/api'; // dispositivo físico
+    } else if (Platform.isIOS) {
+      return 'http://localhost:8080/api';
     } else {
       return 'http://localhost:8080/api';
     }
